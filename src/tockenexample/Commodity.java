@@ -3,6 +3,7 @@ package tockenexample;
 import sun.java2d.loops.GeneralRenderer;
 
 import java.io.*;
+import java.time.Year;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.GregorianCalendar;
@@ -63,37 +64,69 @@ public class Commodity {
         return "price: " + this.price + " zł " + "name: " + this.name + gregorianCalendar.get(Calendar.YEAR) + "year: " + (gregorianCalendar.get(Calendar.MONTH) + 1) + "month: " + gregorianCalendar.get(Calendar.DAY_OF_MONTH) + " day: ";
     }
 
-    public static void saveToFile(Commodity[] commodity, PrintWriter outS) {
-        outS.println(commodity.length);
-        GregorianCalendar calendar = new GregorianCalendar();
-
+    public static void saveToFile(Commodity[] commodity, DataOutput outS) throws IOException {
         for (int i = 0; i < commodity.length; i++) {
-            calendar.setTime(commodity[i].getDateRelease());
-            outS.println(commodity[i].getPrice() + "|" + commodity[i].getName() + "|" + calendar.get(Calendar.YEAR) + "|" + (calendar.get(Calendar.MONTH) + 1) + "|" + calendar.get(Calendar.DAY_OF_MONTH));
+        commodity[i].saveData(outS);
         }
-
     }
 
-    public static Commodity[] getWithFile(BufferedReader inS) throws IOException {
-        int le = Integer.parseInt(inS.readLine());
-        Commodity[] commodity = new Commodity[le];
-        for (int i = 0; i < le; i++) {
-
-            String line = inS.readLine();
-            StringTokenizer tokenizer = new StringTokenizer(line, "|");
-
-            double price = Double.parseDouble(tokenizer.nextToken());
-            String name = tokenizer.nextToken();
-            int year = Integer.parseInt(tokenizer.nextToken());
-            int month = Integer.parseInt(tokenizer.nextToken());
-            int day = Integer.parseInt(tokenizer.nextToken());
-            commodity[i] = new Commodity(price, name, year, month, day);
+    public static Commodity[] getWithFile(RandomAccessFile raf) throws IOException {
+        int numberOfRecords = (int) (raf.length()/LENGTH_RECORD);
+        Commodity[] commodity = new Commodity[numberOfRecords];
+        for (int i = 0; i < numberOfRecords; i++) {
+        commodity[i] = new Commodity();
+        commodity[i].readData(raf);
         }
         return commodity;
+
     }
 
-    private double price;
-    private String name;
-    private Date dateRelease;
+    public void saveData(DataOutput outS) throws IOException {
+        outS.writeDouble(this.price);
+        StringBuffer stringB = new StringBuffer(Commodity.LENGTH_NAME);
+        stringB.append(this.name);
+        stringB.setLength(Commodity.LENGTH_NAME);
 
+        outS.writeChars(stringB.toString());
+
+        GregorianCalendar calendar = new GregorianCalendar();
+        calendar.setTime(this.dateRelease);
+        outS.writeInt(calendar.get(Calendar.YEAR));
+        outS.writeInt((calendar.get(Calendar.MONTH)+1));
+        outS.writeInt(calendar.get(Calendar.DAY_OF_MONTH));
+
+    }
+
+    public void readData(DataInput inS) throws IOException{
+        this.price = inS.readDouble();
+
+        StringBuffer tString = new StringBuffer(Commodity.LENGTH_NAME);
+        for (int i = 0; i<Commodity.LENGTH_NAME; i++){
+            char tCh = inS.readChar();
+            if (tCh!='\0')
+                tString.append(tCh);
+        }
+
+        this.name = tString.toString();
+
+        int year = inS.readInt();
+        int month = inS.readInt();
+        int day = inS.readInt();
+
+        GregorianCalendar calendar = new GregorianCalendar(year, month-1, day);
+        this.dateRelease = calendar.getTime();
+
+    }
+    public void readRecord(RandomAccessFile RAF, int n) throws IOException, AbsenceRecord {
+        if (n<=RAF.length()/Commodity.LENGTH_RECORD) {
+            RAF.seek((n - 1) * Commodity.LENGTH_RECORD);
+            this.readData(RAF);
+        } else
+            throw new AbsenceRecord("Unfortunately, there is no such record");
+    }
+    public static final int LENGTH_NAME = 30;
+    public static final int LENGTH_RECORD = (Character.SIZE * LENGTH_NAME + Double.SIZE + 3*Integer.SIZE)/8;
+    private double price; //8 bajtów
+    private String name; // LENGTH_NAME *  = 60 bajtów
+    private Date dateRelease; //4 bajty + 4 + 4 = 14 bajtów (jednej int = 4  bajty) = RAZEM 80 bajtów
 }

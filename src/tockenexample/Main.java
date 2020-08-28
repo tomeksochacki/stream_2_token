@@ -12,17 +12,38 @@ public class Main {
         commodity[2] = new Commodity(39.0, "Video course Java Script", 2011, 11, 25);
 
         try {
-        PrintWriter printWriter = new PrintWriter(new FileWriter("base.txt"));
-        Commodity.saveToFile(commodity, printWriter);
-        printWriter.close();
+            RandomAccessFile RAF = new RandomAccessFile("newnextbase.txt", "rw");
+            Commodity.saveToFile(commodity, RAF);
+            RAF.seek(0);
 
-        BufferedReader reader = new BufferedReader(new FileReader("base.txt"));
-        Commodity[] commodity2 = Commodity.getWithFile(reader);
-        for (int i = 0; i<commodity2.length; i++)
-            System.out.println(commodity2[i]);
-        reader.close();
-        }
-        catch (IOException e){
+            Commodity[] commodities = Commodity.getWithFile(RAF);
+            for (int i = 0; i < commodities.length; i++) {
+                System.out.println(commodities[i].getPrice());
+                System.out.println(commodities[i].getName());
+                System.out.println(commodities[i].getDateRelease());
+                System.out.println("------------------------------");
+            }
+            /*
+            int n = 3;
+            RAF.seek((n-1)*Commodity.LENGTH_RECORD);
+            Commodity a = new Commodity();
+            a.readData(RAF);
+            System.out.println(a);
+            */
+
+            try {
+
+                Commodity b = new Commodity();
+                b.readRecord(RAF, 233);
+                System.out.println(b);
+            }
+            catch (AbsenceRecord err){
+                System.out.println(err.getMessage());
+            }
+
+            RAF.close();
+
+        } catch (IOException e) {
             System.out.println(e.getMessage());
         }
 
